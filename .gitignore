@@ -41,3 +41,5 @@ out/
 rag_repos/
 qdrant_storage/
 *.log
+.vercel
+.env*

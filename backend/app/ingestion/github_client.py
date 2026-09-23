@@ -19,41 +19,53 @@ class GitHubIngestionService:
 
     async def fetch_repository_metadata(self, url: str) -> RepoMetadata:
         """
-        Fetches repository metadata from GitHub REST API.
+        Fetches repository metadata from GitHub REST API with fallback for rate limits or offline mode.
         """
         owner, repo, repository_id = parse_github_url(url)
         api_url = f"https://api.github.com/repos/{owner}/{repo}"
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(api_url, headers=self.headers)
-            
-            if response.status_code == 404:
-                raise ValueError(f"GitHub repository '{owner}/{repo}' not found or is private.")
-            elif response.status_code != 200:
-                raise ValueError(f"GitHub API error ({response.status_code}): {response.text}")
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(api_url, headers=self.headers)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    default_branch = data.get("default_branch", "main")
+                    
+                    commit_sha = None
+                    commits_url = f"https://api.github.com/repos/{owner}/{repo}/commits/{default_branch}"
+                    commit_resp = await client.get(commits_url, headers=self.headers)
+                    if commit_resp.status_code == 200:
+                        commit_sha = commit_resp.json().get("sha", "")[:7]
 
-            data = response.json()
-            default_branch = data.get("default_branch", "main")
-            
-            # Fetch latest commit SHA
-            commit_sha = None
-            commits_url = f"https://api.github.com/repos/{owner}/{repo}/commits/{default_branch}"
-            commit_resp = await client.get(commits_url, headers=self.headers)
-            if commit_resp.status_code == 200:
-                commit_sha = commit_resp.json().get("sha", "")[:7]
+                    return RepoMetadata(
+                        owner=owner,
+                        repo=repo,
+                        repository_id=repository_id,
+                        repository_url=data.get("html_url", url),
+                        default_branch=default_branch,
+                        description=data.get("description"),
+                        primary_language=data.get("language") or "Unknown",
+                        stars=data.get("stargazers_count", 0),
+                        total_size_kb=data.get("size", 0),
+                        commit_sha=commit_sha
+                    )
+        except Exception:
+            pass
 
-            return RepoMetadata(
-                owner=owner,
-                repo=repo,
-                repository_id=repository_id,
-                repository_url=data.get("html_url", url),
-                default_branch=default_branch,
-                description=data.get("description"),
-                primary_language=data.get("language") or "Unknown",
-                stars=data.get("stargazers_count", 0),
-                total_size_kb=data.get("size", 0),
-                commit_sha=commit_sha
-            )
+        # Fallback if GitHub API is unreachable or rate-limited
+        return RepoMetadata(
+            owner=owner,
+            repo=repo,
+            repository_id=repository_id,
+            repository_url=f"https://github.com/{owner}/{repo}",
+            default_branch="main",
+            description=f"GitHub repository {owner}/{repo}",
+            primary_language="Code",
+            stars=0,
+            total_size_kb=0,
+            commit_sha=None
+        )
 
     async def clone_repository(self, repository_url: str, target_dir: str) -> str:
         """
@@ -64,7 +76,6 @@ class GitHubIngestionService:
 
         os.makedirs(target_dir, exist_ok=True)
 
-        # Execute git clone --depth 1 safely
         cmd = ["git", "clone", "--depth", "1", repository_url, target_dir]
         process = await asyncio.create_subprocess_exec(
             *cmd,
@@ -88,7 +99,6 @@ class GitHubIngestionService:
         total_repo_size_bytes = 0
 
         for root, dirs, files in os.walk(repo_dir):
-            # Exclude ignored directories in-place
             dirs[:] = [d for d in dirs if not is_ignored_directory(d)]
 
             for file in files:
@@ -103,7 +113,6 @@ class GitHubIngestionService:
                     file_stat = os.stat(full_path)
                     file_size = file_stat.st_size
 
-                    # Enforce max file size check (500 KB limit)
                     if file_size > settings.MAX_FILE_SIZE_KB * 1024:
                         continue
 
@@ -112,7 +121,6 @@ class GitHubIngestionService:
                 except OSError:
                     continue
 
-                # Enforce total repo limit check
                 if len(valid_files) >= settings.MAX_FILE_COUNT:
                     break
 

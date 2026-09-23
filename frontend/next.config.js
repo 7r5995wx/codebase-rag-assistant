@@ -4,13 +4,16 @@ const nextConfig = {
   swcMinify: true,
   output: "standalone",
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "https://free-yaks-tan.loca.lt";
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (backendUrl) {
+      return [
+        {
+          source: "/api/:path*",
+          destination: `${backendUrl}/api/:path*`,
+        },
+      ];
+    }
+    return [];
   },
 };
 
