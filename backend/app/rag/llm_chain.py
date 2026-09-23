@@ -33,10 +33,15 @@ class GroundedRAGChain:
         Executes grounded RAG pipeline: Query -> Retrieval -> Context Assembly -> LLM -> Citations.
         """
         if not self.api_key:
-            raise ValueError("OpenAI API key is missing. Set OPENAI_API_KEY environment variable.")
+            raise ValueError("OpenAI API key is missing. Please set OPENAI_API_KEY environment variable in backend/.env")
 
         # 1. Retrieve top context snippets from Qdrant
-        context_snippets = await self.retriever.retrieve_context(query, repository_id, top_k=8)
+        try:
+            context_snippets = await self.retriever.retrieve_context(query, repository_id, top_k=8)
+        except ValueError as ve:
+            raise ve
+        except Exception as e:
+            context_snippets = []
 
         # 2. Build structured context block & extract citations
         context_str_parts = []
@@ -76,15 +81,13 @@ class GroundedRAGChain:
 
         formatted_context = "\n".join(context_str_parts)
 
-        # 3. Assemble chat prompt history (limiting to last 4 turns for context length management)
+        # 3. Assemble chat prompt history
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-        # Include past turns
         recent_history = history[-4:] if history else []
         for msg in recent_history:
             messages.append({"role": msg.role, "content": msg.content})
 
-        # Append current turn with context
         user_prompt = (
             f"RETIREVED CODEBASE CONTEXT:\n"
             f"{formatted_context if formatted_context else 'No context found.'}\n\n"
@@ -92,16 +95,25 @@ class GroundedRAGChain:
         )
         messages.append({"role": "user", "content": user_prompt})
 
-        # 4. Invoke LLM
+        # 4. Invoke LLM with error handling
         client = openai.AsyncOpenAI(api_key=self.api_key)
-        response = await client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=0.2,
-            max_tokens=1500
-        )
-
-        answer_text = response.choices[0].message.content or "No answer generated."
+        try:
+            response = await client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.2,
+                max_tokens=1500
+            )
+            answer_text = response.choices[0].message.content or "No answer generated."
+        except openai.RateLimitError as e:
+            if "insufficient_quota" in str(e) or "credit_balance_exhausted" in str(e):
+                answer_text = "⚠️ **OpenAI Billing Notice**: Your OpenAI API key has 0 remaining credits or has exceeded its billing quota. Please add credits at [platform.openai.com/settings/organization/billing](https://platform.openai.com/settings/organization/billing) and try again."
+            else:
+                answer_text = f"⚠️ **OpenAI Rate Limit**: {str(e)}"
+        except openai.AuthenticationError:
+            answer_text = "⚠️ **Authentication Error**: The OpenAI API key provided is invalid. Please check your `OPENAI_API_KEY` in `backend/.env`."
+        except Exception as e:
+            answer_text = f"⚠️ **AI Service Error**: {str(e)}"
 
         return ChatResponse(
             answer=answer_text,
