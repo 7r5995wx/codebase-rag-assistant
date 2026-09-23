@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openaiClient, LLM_MODEL } from '@/lib/openai';
+import { genAI, GEMINI_LLM_MODEL } from '@/lib/gemini';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const repositoryId = params.id;
@@ -17,17 +17,14 @@ Return a JSON object with:
 "architecture": string
 `;
 
-    const completion = await openaiClient.chat.completions.create({
-      model: LLM_MODEL,
-      messages: [
-        { role: 'system', content: 'You are a software architect. Return JSON only.' },
-        { role: 'user', content: prompt }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.1,
+    const model = genAI.getGenerativeModel({
+      model: GEMINI_LLM_MODEL,
+      generationConfig: { responseMimeType: 'application/json' },
     });
 
-    const parsed = JSON.parse(completion.choices[0]?.message?.content || '{}');
+    const result = await model.generateContent(prompt);
+    const parsed = JSON.parse(result.response.text() || '{}');
+
     return NextResponse.json({
       repository_id: repositoryId,
       repo_name: repoName,

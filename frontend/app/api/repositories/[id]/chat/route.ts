@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openaiClient, EMBEDDING_MODEL, LLM_MODEL } from '@/lib/openai';
+import { genAI, generateSingleGeminiEmbedding, GEMINI_LLM_MODEL } from '@/lib/gemini';
 import { qdrantClient, COLLECTION_NAME } from '@/lib/qdrant';
 
 const SYSTEM_PROMPT = `You are an expert AI Software Engineering Assistant specializing in codebase analysis and technical explanation.
@@ -25,18 +25,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ detail: 'Chat message is required.' }, { status: 400 });
     }
 
-    // 1. Embed user query via OpenAI
+    // 1. Embed user query via Gemini
     let queryVector: number[] = [];
     try {
-      const embRes = await openaiClient.embeddings.create({
-        model: EMBEDDING_MODEL,
-        input: [query.replace(/\n/g, ' ')],
-      });
-      queryVector = embRes.data[0].embedding;
+      queryVector = await generateSingleGeminiEmbedding(query);
     } catch (err: any) {
       return NextResponse.json({
-        answer: `⚠️ **OpenAI Billing Notice**: Your OpenAI API key has 0 remaining credits or has exceeded its billing quota. Please add credits at [platform.openai.com/settings/organization/billing](https://platform.openai.com/settings/organization/billing) to enable live vector embeddings and chat completions.`,
-        sources: []
+        answer: `⚠️ **Gemini API Notice**: Failed to generate vector embedding: ${err.message}`,
+        sources: [],
       });
     }
 
@@ -117,15 +113,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       content: `RETRIEVED CODEBASE CONTEXT:\n${formattedContext || 'No code context found.'}\n\nUSER QUESTION:\n${query}`,
     });
 
-    // 5. Invoke LLM
-    const completion = await openaiClient.chat.completions.create({
-      model: LLM_MODEL,
-      messages: messages,
-      temperature: 0.2,
-      max_tokens: 1500,
+    // 5. Invoke Gemini 1.5 Flash LLM
+    const model = genAI.getGenerativeModel({
+      model: GEMINI_LLM_MODEL,
+      systemInstruction: SYSTEM_PROMPT,
     });
 
-    const answerText = completion.choices[0]?.message?.content || 'No answer generated.';
+    const promptText = `RETRIEVED CODEBASE CONTEXT:\n${formattedContext || 'No code context found.'}\n\nUSER QUESTION:\n${query}`;
+    const result = await model.generateContent(promptText);
+    const answerText = result.response.text() || 'No answer generated.';
 
     return NextResponse.json({
       answer: answerText,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseGitHubUrl, fetchRepoMetadata, fetchRepoTreeFiles, fetchRawFileContent } from '@/lib/github';
 import { chunkFileContent, CodeChunk } from '@/lib/chunker';
-import { openaiClient, EMBEDDING_MODEL } from '@/lib/openai';
+import { generateGeminiEmbeddings } from '@/lib/gemini';
 import { qdrantClient, COLLECTION_NAME } from '@/lib/qdrant';
 import { setStatus, updateStatus } from '@/lib/store';
 
@@ -65,20 +65,15 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        // Generate embeddings via OpenAI
+        // Generate embeddings via Google Gemini
         updateStatus(repositoryId, {
           status: 'embedding',
           progress_percentage: 65.0,
-          message: `Generating vector embeddings for ${allChunks.length} chunks...`,
+          message: `Generating vector embeddings for ${allChunks.length} chunks via Gemini...`,
         });
 
         const texts = allChunks.map((c) => c.content.replace(/\n/g, ' '));
-        const embeddingRes = await openaiClient.embeddings.create({
-          model: EMBEDDING_MODEL,
-          input: texts,
-        });
-
-        const vectors = embeddingRes.data.map((d) => d.embedding);
+        const vectors = await generateGeminiEmbeddings(texts);
 
         // Upsert to Qdrant Vector DB
         updateStatus(repositoryId, {
