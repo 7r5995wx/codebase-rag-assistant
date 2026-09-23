@@ -25,7 +25,7 @@ export const Header: React.FC = () => {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2 text-xs text-dark-muted bg-dark-card border border-dark-border px-3 py-1.5 rounded-lg">
             <Cpu className="w-3.5 h-3.5 text-brand-green" />
-            <span>Qdrant + OpenAI</span>
+            <span>Qdrant + Gemini 3.6</span>
           </div>
         </div>
       </div>

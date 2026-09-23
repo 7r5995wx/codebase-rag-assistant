@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         const isQuotaError = err.status === 429 || err.message?.includes('quota') || err.message?.includes('credits');
         const errMsg = isQuotaError
-          ? 'OpenAI API Quota Exceeded: 0 credits remaining on your OpenAI API account. Please add credits at https://platform.openai.com/settings/organization/billing to generate embeddings.'
+          ? 'Gemini API Quota Exceeded: Please check your Google Gemini API key status at aistudio.google.com.'
           : err.message || 'Failed to index repository.';
 
         setStatus(repositoryId, {

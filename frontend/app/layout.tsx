@@ -4,7 +4,7 @@ import { Header } from '../components/Header';
 
 export const metadata = {
   title: 'Codebase RAG Assistant - AI Repository Intelligence',
-  description: 'Understand and query any public GitHub repository using Tree-sitter AST parsing, Qdrant vector search, and grounded OpenAI LLM.',
+  description: 'Understand and query any public GitHub repository using Tree-sitter AST parsing, Qdrant vector search, and grounded Google Gemini 3.6 Flash.',
 };
 
 export default function RootLayout({
@@ -20,7 +20,7 @@ export default function RootLayout({
           {children}
         </main>
         <footer className="border-t border-dark-border py-4 text-center text-xs text-dark-muted">
-          Codebase RAG Assistant &copy; {new Date().getFullYear()} &bull; Tree-sitter AST &bull; Qdrant &bull; OpenAI RAG
+          Codebase RAG Assistant &copy; {new Date().getFullYear()} &bull; Tree-sitter AST &bull; Qdrant &bull; Gemini RAG
         </footer>
       </body>
     </html>
