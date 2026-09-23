@@ -52,6 +52,7 @@ export default function Home() {
 
   const handleAnalyzeAndIndex = async (url: string, forceReindex: boolean = false) => {
     setError(null);
+    setProgress(null);
     setIsAnalyzing(true);
     setMessages([]);
     setSummary(null);
