@@ -1,8 +1,16 @@
 # Codebase RAG Assistant 🚀
 
-An AI-powered assistant that ingests, parses, vectors, and analyzes public GitHub repositories using **Tree-sitter AST parsing**, **Qdrant Vector Database**, and **grounded OpenAI LLM retrieval**.
+An AI-powered assistant that ingests, parses, vectors, and analyzes public GitHub repositories using **Tree-sitter AST parsing**, **Qdrant Cloud Vector Database**, and **grounded OpenAI LLM retrieval**.
 
 Understand complex codebases, inquire about architectural patterns, locate entry points, and receive grounded answers backed by precise line-level source code citations.
+
+---
+
+## 🌐 Live Production Links
+
+- **Vercel Web App**: [https://frontend-lovat-ten-85.vercel.app](https://frontend-lovat-ten-85.vercel.app)
+- **GitHub Repository**: [https://github.com/7r5995wx/codebase-rag-assistant](https://github.com/7r5995wx/codebase-rag-assistant)
+- **Production Vector DB**: Managed Qdrant Cloud Cluster (`us-east-2.aws.cloud.qdrant.io`)
 
 ---
 
@@ -11,7 +19,7 @@ Understand complex codebases, inquire about architectural patterns, locate entry
 - **GitHub Repository Ingestion**: Validates public repository URLs, extracts metadata, stars, default branch, and shallow clones source code into an isolated temporary environment.
 - **Tree-sitter AST-Guided Chunking**: Intelligently splits source code into logical structural units (functions, classes, methods, interfaces, types) preserving line ranges (`start_line`, `end_line`), symbol names, and symbol types across 10+ languages (Python, TypeScript, JavaScript, Go, Rust, Java, C++, HTML, CSS, Markdown, JSON, YAML).
 - **Cost-Optimized Deterministic Hashing**: Uses SHA256 hashing to generate unique chunk IDs for deduplication and API cost control.
-- **Qdrant Vector Database**: Stores embedding vectors (`text-embedding-3-small`) with payload metadata filtered by `repository_id`.
+- **Qdrant Vector Database**: Stores embedding vectors (`text-embedding-3-small`) with payload metadata filtered by `repository_id`. Connected to managed Qdrant Cloud.
 - **Grounded RAG Pipeline**: Restricts LLM responses strictly to retrieved code context, preventing hallucinations while citing relative file paths and line ranges.
 - **Interactive Source Citations**: Inline and expandable source code drawer with exact line numbers and code preview.
 - **Automated Architecture Summarizer**: Generates grounded repository overviews, tech stack analysis, entry points, and directory breakdowns.
@@ -40,7 +48,7 @@ Understand complex codebases, inquire about architectural patterns, locate entry
              FastAPI Production Server
          ┌───────────────┼───────────────┐
          ▼               ▼               ▼
-   OpenAI API     Qdrant DB         GitHub API / Git
+   OpenAI API     Qdrant Cloud      GitHub API / Git
 (Embeddings/LLM) (Vector Storage)   (Repo Ingestion)
 ```
 
@@ -113,15 +121,15 @@ Codebase RAG Assistant/
 | `OPENAI_API_KEY` | Yes | OpenAI API Key for embeddings and chat model |
 | `EMBEDDING_MODEL` | No | Default: `text-embedding-3-small` |
 | `LLM_MODEL` | No | Default: `gpt-4o-mini` |
-| `QDRANT_URL` | Yes | Local (`http://localhost:6333`) or Qdrant Cloud Cluster URL |
-| `QDRANT_API_KEY` | Optional | Qdrant Cloud Cluster API Key |
+| `QDRANT_URL` | Yes | Qdrant Cloud Cluster URL (`https://1696227e-34ca-4909-b8c3-2d7c04eab16c.us-east-2-0.aws.cloud.qdrant.io`) |
+| `QDRANT_API_KEY` | Yes | Qdrant Cloud Cluster API Key |
 | `GITHUB_TOKEN` | Optional | GitHub Personal Access Token (for higher rate limits) |
 
 ### Frontend (`frontend/.env.local`)
 
 | Variable | Required | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | Yes | Production FastAPI Backend URL (e.g., `https://your-backend-api.com`) |
+| `NEXT_PUBLIC_API_URL` | Yes | Production FastAPI Backend URL |
 
 ---
 
@@ -130,16 +138,9 @@ Codebase RAG Assistant/
 ### Prerequisites
 - Node.js 18+ & npm
 - Python 3.10+
-- Docker & Docker Compose
 - Git
 
-### 1. Start Qdrant Vector Database
-```bash
-docker-compose up -d
-```
-Qdrant Web Dashboard will be available at `http://localhost:6333/dashboard`.
-
-### 2. Set Up Backend
+### 1. Set Up Backend
 ```bash
 cd backend
 python3 -m venv .venv
@@ -148,14 +149,14 @@ pip install -r requirements.txt
 
 # Configure environment variables
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
+# Edit .env and add your OPENAI_API_KEY & QDRANT_URL
 
 # Start FastAPI dev server
 uvicorn app.main:app --reload --port 8000
 ```
 FastAPI Swagger docs will be available at `http://localhost:8000/docs`.
 
-### 3. Set Up Frontend
+### 2. Set Up Frontend
 ```bash
 cd frontend
 npm install
@@ -193,11 +194,3 @@ npm run build
 | `GET` | `/api/repositories/{id}/summary` | AI-generated architecture overview |
 | `GET` | `/api/repositories/{id}/files` | List indexed repository files |
 | `DELETE` | `/api/repositories/{id}` | Purge vectors for repository |
-
----
-
-## 🌐 Live Deployments
-
-- **Frontend**: [Vercel Deployment URL]
-- **Backend API**: [Production Backend API URL]
-- **Vector DB**: Managed Qdrant Cloud
