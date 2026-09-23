@@ -12,11 +12,27 @@ class QdrantVectorStore:
         self.api_key = api_key or settings.QDRANT_API_KEY
         self.collection_name = settings.QDRANT_COLLECTION_PREFIX
 
-        # Initialize Qdrant Client
-        if self.api_key:
-            self.client = QdrantClient(url=self.url, api_key=self.api_key)
-        else:
-            self.client = QdrantClient(url=self.url)
+        # Smart Client Initialization: Try HTTP/Cloud Qdrant first, fallback to Embedded Local storage
+        self._init_client()
+
+    def _init_client(self):
+        if self.url and self.url.startswith("http"):
+            try:
+                if self.api_key:
+                    client = QdrantClient(url=self.url, api_key=self.api_key, timeout=3.0)
+                else:
+                    client = QdrantClient(url=self.url, timeout=3.0)
+                # Verify server connectivity
+                client.get_collections()
+                self.client = client
+                return
+            except Exception:
+                # HTTP Qdrant server not reachable, fallback to embedded disk storage
+                pass
+
+        # Local embedded vector storage directory fallback
+        local_path = "/tmp/qdrant_local_store"
+        self.client = QdrantClient(path=local_path)
 
     def ensure_collection_exists(self, vector_size: int = 1536):
         """Ensures Qdrant collection exists with proper vector index config."""
@@ -32,14 +48,15 @@ class QdrantVectorStore:
                         distance=models.Distance.COSINE
                     )
                 )
-                # Create payload index for fast filtering by repository_id
-                self.client.create_payload_index(
-                    collection_name=self.collection_name,
-                    field_name="repository_id",
-                    field_schema=models.PayloadSchemaType.KEYWORD
-                )
-        except Exception as e:
-            # Fallback for cloud/local connection initialization error handling
+                try:
+                    self.client.create_payload_index(
+                        collection_name=self.collection_name,
+                        field_name="repository_id",
+                        field_schema=models.PayloadSchemaType.KEYWORD
+                    )
+                except Exception:
+                    pass
+        except Exception:
             pass
 
     def upsert_chunks(self, chunks: List[ChunkMetadata], embeddings: List[List[float]]):
@@ -51,7 +68,6 @@ class QdrantVectorStore:
         points: List[models.PointStruct] = []
 
         for chunk, vector in zip(chunks, embeddings):
-            # Generate UUID v5 based on chunk_id string for deterministic Qdrant point ID
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk.chunk_id))
 
             payload = {
@@ -76,7 +92,6 @@ class QdrantVectorStore:
                 )
             )
 
-        # Batch upsert points
         batch_size = 100
         for i in range(0, len(points), batch_size):
             batch = points[i:i + batch_size]
