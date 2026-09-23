@@ -8,7 +8,7 @@ Understand complex codebases, inquire about architectural patterns, locate entry
 
 ## 🌐 Live Production Links
 
-- **Vercel Web App**: [https://codebase-rag-assistant-nhc658z2n-switchvishal.vercel.app](https://codebase-rag-assistant-nhc658z2n-switchvishal.vercel.app)
+- **Vercel Web App**: [https://codebase-rag-assistant-lashttnxl-switchvishal.vercel.app](https://codebase-rag-assistant-lashttnxl-switchvishal.vercel.app)
 - **GitHub Repository**: [https://github.com/7r5995wx/codebase-rag-assistant](https://github.com/7r5995wx/codebase-rag-assistant)
 - **Production Vector DB**: Managed Qdrant Cloud Cluster (`us-east-2.aws.cloud.qdrant.io`)
 
