@@ -61,7 +61,6 @@ export async function fetchRepoMetadata(url: string): Promise<RepoMetadata> {
     if (err.response?.status === 404) {
       throw new Error(`GitHub repository '${owner}/${repo}' not found or is private.`);
     }
-    // Fallback if GitHub API rate-limited
     return {
       owner,
       repo,
@@ -107,12 +106,17 @@ const IGNORED_DIRECTORIES = new Set([
 export function getFileLanguage(filePath: string): string | null {
   const parts = filePath.split('/');
   for (const p of parts) {
-    if (IGNORED_DIRECTORIES.has(p) || p.startsWith('.')) {
+    if (IGNORED_DIRECTORIES.has(p)) {
       return null;
     }
   }
 
-  const ext = '.' + filePath.split('.').pop()?.toLowerCase();
+  const filename = parts[parts.length - 1];
+  if (filename.startsWith('.') && !filename.endsWith('.json') && !filename.endsWith('.md')) {
+    return null;
+  }
+
+  const ext = '.' + filename.split('.').pop()?.toLowerCase();
   return SUPPORTED_EXTENSIONS[ext] || null;
 }
 
@@ -129,12 +133,30 @@ export async function fetchRepoTreeFiles(owner: string, repo: string, branch: st
           validFiles.push({ path: item.path, language: lang });
         }
       }
-      if (validFiles.length >= 200) break; // Limit to 200 files
+      if (validFiles.length >= 200) break;
     }
-    return validFiles;
-  } catch (err) {
-    return [];
+    if (validFiles.length > 0) return validFiles;
+  } catch (err: any) {
+    console.warn('GitHub tree API failed or rate limited:', err.message);
   }
+
+  // Fallback: Return common project entry files
+  const COMMON_PATHS = [
+    'README.md', 'package.json', 'src/app/page.tsx', 'src/app/layout.tsx',
+    'src/index.ts', 'src/index.tsx', 'src/main.ts', 'src/App.tsx',
+    'src/components/Navbar.tsx', 'app/page.tsx', 'main.py', 'app.py',
+    'go.mod', 'Cargo.toml'
+  ];
+
+  const fallbackFiles: { path: string; language: string }[] = [];
+  for (const path of COMMON_PATHS) {
+    const lang = getFileLanguage(path);
+    if (lang) {
+      fallbackFiles.push({ path, language: lang });
+    }
+  }
+
+  return fallbackFiles;
 }
 
 export async function fetchRawFileContent(owner: string, repo: string, branch: string, filePath: string): Promise<string> {
