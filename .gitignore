@@ -1,0 +1,43 @@
+# Environment variables & secrets
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+*.env
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+.venv/
+backend/.venv/
+venv/
+env/
+
+# Python cache & build
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# Next.js build output
+.next/
+frontend/.next/
+out/
+
+# IDE & System
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files & local stores
+/tmp/
+rag_repos/
+qdrant_storage/
+*.log
