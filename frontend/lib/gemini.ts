@@ -4,8 +4,8 @@ const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || 'AIza
 
 export const genAI = new GoogleGenerativeAI(apiKey);
 
-export const GEMINI_LLM_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-export const GEMINI_EMBEDDING_MODEL = 'text-embedding-004';
+export const GEMINI_LLM_MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+export const GEMINI_EMBEDDING_MODEL = 'gemini-embedding-001';
 
 export async function generateGeminiEmbeddings(texts: string[]): Promise<number[][]> {
   const model = genAI.getGenerativeModel({ model: GEMINI_EMBEDDING_MODEL });
