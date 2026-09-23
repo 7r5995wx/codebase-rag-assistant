@@ -40,13 +40,18 @@ export async function POST(req: NextRequest) {
         const treeFiles = await fetchRepoTreeFiles(owner, repo, branch);
         const allChunks: CodeChunk[] = [];
 
-        for (const file of treeFiles.slice(0, 30)) {
-          const content = await fetchRawFileContent(owner, repo, branch, file.path);
+        const targetFiles = treeFiles.slice(0, 30);
+        const contents = await Promise.all(
+          targetFiles.map((file) => fetchRawFileContent(owner, repo, branch, file.path))
+        );
+
+        targetFiles.forEach((file, idx) => {
+          const content = contents[idx];
           if (content) {
             const fileChunks = chunkFileContent(repositoryId, file.path, content, file.language, meta.commit_sha || '');
             allChunks.push(...fileChunks);
           }
-        }
+        });
 
         updateStatus(repositoryId, {
           files_indexed: Math.min(30, treeFiles.length),
