@@ -131,13 +131,18 @@ export async function POST(req: NextRequest) {
           chunks_created: allChunks.length,
         });
       } catch (err: any) {
+        const isQuotaError = err.status === 429 || err.message?.includes('quota') || err.message?.includes('credits');
+        const errMsg = isQuotaError
+          ? 'OpenAI API Quota Exceeded: 0 credits remaining on your OpenAI API account. Please add credits at https://platform.openai.com/settings/organization/billing to generate embeddings.'
+          : err.message || 'Failed to index repository.';
+
         setStatus(repositoryId, {
           status: 'failed',
           progress_percentage: 100.0,
-          message: `Indexing failed: ${err.message}`,
+          message: `Indexing failed: ${errMsg}`,
           files_indexed: 0,
           chunks_created: 0,
-          error: err.message || 'Failed to index repository.',
+          error: errMsg,
         });
       }
     })();
