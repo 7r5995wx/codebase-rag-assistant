@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { genAI, generateSingleGeminiEmbedding, GEMINI_LLM_MODEL } from '@/lib/gemini';
+import { generateGeminiContent, generateSingleGeminiEmbedding } from '@/lib/gemini';
 import { qdrantClient, COLLECTION_NAME } from '@/lib/qdrant';
 
 const SYSTEM_PROMPT = `You are an expert AI Software Engineering Assistant specializing in codebase analysis and technical explanation.
@@ -113,15 +113,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       content: `RETRIEVED CODEBASE CONTEXT:\n${formattedContext || 'No code context found.'}\n\nUSER QUESTION:\n${query}`,
     });
 
-    // 5. Invoke Gemini 1.5 Flash LLM
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_LLM_MODEL,
-      systemInstruction: SYSTEM_PROMPT,
-    });
-
+    // 5. Invoke Gemini LLM with automatic model fallback
     const promptText = `RETRIEVED CODEBASE CONTEXT:\n${formattedContext || 'No code context found.'}\n\nUSER QUESTION:\n${query}`;
-    const result = await model.generateContent(promptText);
-    const answerText = result.response.text() || 'No answer generated.';
+    const answerText = await generateGeminiContent(promptText, SYSTEM_PROMPT);
 
     return NextResponse.json({
       answer: answerText,
