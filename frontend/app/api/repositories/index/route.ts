@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { parseGitHubUrl, fetchRepoMetadata, fetchRepoTreeFiles, fetchRawFileContent } from '@/lib/github';
 import { chunkFileContent, CodeChunk } from '@/lib/chunker';
 import { generateGeminiEmbeddings } from '@/lib/gemini';
@@ -98,9 +99,25 @@ export async function POST(req: NextRequest) {
           });
         }
 
+        // Delete existing points for this repository if re-indexing
+        try {
+          await qdrantClient.delete(COLLECTION_NAME, {
+            filter: {
+              must: [
+                {
+                  key: 'repository_id',
+                  match: { value: repositoryId },
+                },
+              ],
+            },
+          });
+        } catch (e) {
+          // Ignore if collection was empty
+        }
+
         const points = allChunks.map((chunk, idx) => {
           return {
-            id: String(idx + 1),
+            id: crypto.randomUUID(),
             vector: vectors[idx],
             payload: {
               chunk_id: chunk.chunk_id,
