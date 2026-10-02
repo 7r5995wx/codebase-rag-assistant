@@ -163,10 +163,12 @@ export async function POST(req: NextRequest) {
         chunks_created: allChunks.length,
       });
     } catch (err: any) {
-      const isQuotaError = err.status === 429 || err.message?.includes('quota') || err.message?.includes('credits');
+      console.error('INDEXING ERROR DETAIL:', err);
+      const detailError = err.response?.data?.status?.error || err.response?.data?.detail || err.message;
+      const isQuotaError = err.status === 429 || (typeof detailError === 'string' && (detailError.includes('quota') || detailError.includes('credits')));
       const errMsg = isQuotaError
         ? 'Gemini API Quota Exceeded: Please check your Google Gemini API key status at aistudio.google.com.'
-        : err.message || 'Failed to index repository.';
+        : (typeof detailError === 'string' ? detailError : 'Failed to index repository.');
 
       setStatus(repositoryId, {
         status: 'failed',
