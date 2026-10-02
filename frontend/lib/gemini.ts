@@ -44,19 +44,25 @@ export async function generateGeminiContent(promptText: string, systemInstructio
 
 export async function generateGeminiEmbeddings(texts: string[]): Promise<number[][]> {
   const model = genAI.getGenerativeModel({ model: GEMINI_EMBEDDING_MODEL });
+  const BATCH_SIZE = 15;
+  const results: number[][] = [];
 
-  const embeddings = await Promise.all(
-    texts.map(async (text) => {
-      try {
-        const res = await model.embedContent(text.slice(0, 8000));
-        return res.embedding?.values || new Array(768).fill(0);
-      } catch (e) {
-        return new Array(768).fill(0);
-      }
-    })
-  );
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batch = texts.slice(i, i + BATCH_SIZE);
+    const batchEmbeddings = await Promise.all(
+      batch.map(async (text) => {
+        try {
+          const res = await model.embedContent(text.slice(0, 8000));
+          return res.embedding?.values || new Array(768).fill(0);
+        } catch (e) {
+          return new Array(768).fill(0);
+        }
+      })
+    );
+    results.push(...batchEmbeddings);
+  }
 
-  return embeddings;
+  return results;
 }
 
 export async function generateSingleGeminiEmbedding(text: string): Promise<number[]> {

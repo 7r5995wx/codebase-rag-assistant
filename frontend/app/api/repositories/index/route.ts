@@ -134,10 +134,15 @@ export async function POST(req: NextRequest) {
         };
       });
 
-      await qdrantClient.upsert(COLLECTION_NAME, {
-        wait: true,
-        points: points,
-      });
+      // Upsert in batches of 40 to prevent HTTP 400 payload overflow on large repositories
+      const BATCH_SIZE = 40;
+      for (let i = 0; i < points.length; i += BATCH_SIZE) {
+        const batch = points.slice(i, i + BATCH_SIZE);
+        await qdrantClient.upsert(COLLECTION_NAME, {
+          wait: true,
+          points: batch,
+        });
+      }
 
       setStatus(repositoryId, {
         status: 'completed',
