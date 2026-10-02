@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       const treeFiles = await fetchRepoTreeFiles(owner, repo, branch);
       const allChunks: CodeChunk[] = [];
 
-      const targetFiles = treeFiles.slice(0, 30);
+      const targetFiles = treeFiles.slice(0, 15);
       const contents = await Promise.all(
         targetFiles.map((file) => fetchRawFileContent(owner, repo, branch, file.path))
       );
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       });
 
       updateStatus(repositoryId, {
-        files_indexed: Math.min(30, treeFiles.length),
+        files_indexed: Math.min(15, treeFiles.length),
         chunks_created: allChunks.length,
       });
 
@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
         status: 'completed',
         progress_percentage: 100.0,
         message: 'Repository indexing complete.',
-        files_indexed: Math.min(30, treeFiles.length),
+        files_indexed: Math.min(15, treeFiles.length),
         chunks_created: allChunks.length,
       });
     } catch (err: any) {
