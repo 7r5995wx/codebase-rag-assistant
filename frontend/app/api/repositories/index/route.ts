@@ -87,12 +87,21 @@ export async function POST(req: NextRequest) {
         message: 'Upserting vectors into Qdrant Cloud Database...',
       });
 
+      const targetDim = vectors[0]?.length || 768;
       try {
-        await qdrantClient.getCollection(COLLECTION_NAME);
+        const info = await qdrantClient.getCollection(COLLECTION_NAME);
+        const currentDim = (info.config?.params?.vectors as any)?.size;
+        if (currentDim && currentDim !== targetDim) {
+          console.warn(`Recreating Qdrant collection due to vector dimension mismatch (current: ${currentDim}, target: ${targetDim})`);
+          await qdrantClient.deleteCollection(COLLECTION_NAME);
+          await qdrantClient.createCollection(COLLECTION_NAME, {
+            vectors: { size: targetDim, distance: 'Cosine' },
+          });
+        }
       } catch (e) {
         await qdrantClient.createCollection(COLLECTION_NAME, {
           vectors: {
-            size: vectors[0].length,
+            size: targetDim,
             distance: 'Cosine',
           },
         });
