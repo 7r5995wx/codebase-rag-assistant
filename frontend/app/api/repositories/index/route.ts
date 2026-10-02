@@ -98,6 +98,17 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      // Ensure repository_id keyword payload index exists for Qdrant payload filter deletes
+      try {
+        await qdrantClient.createPayloadIndex(COLLECTION_NAME, {
+          field_name: 'repository_id',
+          field_schema: 'keyword',
+          wait: true,
+        });
+      } catch (e) {
+        // Ignore if index already exists
+      }
+
       // Delete existing points for this repository if re-indexing
       try {
         await qdrantClient.delete(COLLECTION_NAME, {
@@ -111,7 +122,7 @@ export async function POST(req: NextRequest) {
           },
         });
       } catch (e) {
-        // Ignore if collection was empty
+        // Ignore if points did not exist
       }
 
       const points = allChunks.map((chunk, idx) => {
