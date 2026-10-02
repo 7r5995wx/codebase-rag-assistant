@@ -8,6 +8,17 @@ const githubAxios = axios.create({
   headers: GITHUB_TOKEN ? { Authorization: `Bearer ${GITHUB_TOKEN}` } : {},
 });
 
+async function safeGithubGet(endpoint: string) {
+  try {
+    return await githubAxios.get(endpoint);
+  } catch (err: any) {
+    if (GITHUB_TOKEN && (err.response?.status === 400 || err.response?.status === 401 || err.response?.status === 403)) {
+      return await axios.get(`https://api.github.com${endpoint}`);
+    }
+    throw err;
+  }
+}
+
 export function parseGitHubUrl(url: string): { owner: string; repo: string; repositoryId: string } {
   if (!url || typeof url !== 'string') {
     throw new Error('GitHub URL must be a non-empty string.');
@@ -31,13 +42,13 @@ export async function fetchRepoMetadata(url: string): Promise<RepoMetadata> {
   const { owner, repo, repositoryId } = parseGitHubUrl(url);
 
   try {
-    const res = await githubAxios.get(`/repos/${owner}/${repo}`);
+    const res = await safeGithubGet(`/repos/${owner}/${repo}`);
     const data = res.data;
     const defaultBranch = data.default_branch || 'main';
 
     let commitSha = '';
     try {
-      const commitRes = await githubAxios.get(`/repos/${owner}/${repo}/commits/${defaultBranch}`);
+      const commitRes = await safeGithubGet(`/repos/${owner}/${repo}/commits/${defaultBranch}`);
       commitSha = (commitRes.data?.sha || '').substring(0, 7);
     } catch (e) {
       commitSha = 'main';
@@ -125,7 +136,7 @@ export async function fetchRepoTreeFiles(owner: string, repo: string, branch: st
 
   for (const b of branchesToTry) {
     try {
-      const res = await githubAxios.get(`/repos/${owner}/${repo}/git/trees/${b}?recursive=1`);
+      const res = await safeGithubGet(`/repos/${owner}/${repo}/git/trees/${b}?recursive=1`);
       const tree = res.data?.tree || [];
       
       const validFiles: { path: string; language: string }[] = [];
