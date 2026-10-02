@@ -121,23 +121,27 @@ export function getFileLanguage(filePath: string): string | null {
 }
 
 export async function fetchRepoTreeFiles(owner: string, repo: string, branch: string): Promise<{ path: string; language: string }[]> {
-  try {
-    const res = await githubAxios.get(`/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
-    const tree = res.data?.tree || [];
-    
-    const validFiles: { path: string; language: string }[] = [];
-    for (const item of tree) {
-      if (item.type === 'blob') {
-        const lang = getFileLanguage(item.path);
-        if (lang) {
-          validFiles.push({ path: item.path, language: lang });
+  const branchesToTry = Array.from(new Set([branch, 'main', 'master', 'dev', 'trunk']));
+
+  for (const b of branchesToTry) {
+    try {
+      const res = await githubAxios.get(`/repos/${owner}/${repo}/git/trees/${b}?recursive=1`);
+      const tree = res.data?.tree || [];
+      
+      const validFiles: { path: string; language: string }[] = [];
+      for (const item of tree) {
+        if (item.type === 'blob') {
+          const lang = getFileLanguage(item.path);
+          if (lang) {
+            validFiles.push({ path: item.path, language: lang });
+          }
         }
+        if (validFiles.length >= 200) break;
       }
-      if (validFiles.length >= 200) break;
+      if (validFiles.length > 0) return validFiles;
+    } catch (err: any) {
+      console.warn(`GitHub tree API failed for branch ${b}:`, err.message);
     }
-    if (validFiles.length > 0) return validFiles;
-  } catch (err: any) {
-    console.warn('GitHub tree API failed or rate limited:', err.message);
   }
 
   // Fallback: Return common project entry files
@@ -160,11 +164,15 @@ export async function fetchRepoTreeFiles(owner: string, repo: string, branch: st
 }
 
 export async function fetchRawFileContent(owner: string, repo: string, branch: string, filePath: string): Promise<string> {
-  try {
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
-    const res = await axios.get(rawUrl, { responseType: 'text', timeout: 5000 });
-    return res.data;
-  } catch (err) {
-    return '';
+  const branchesToTry = Array.from(new Set([branch, 'main', 'master']));
+  for (const b of branchesToTry) {
+    try {
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${b}/${filePath}`;
+      const res = await axios.get(rawUrl, { responseType: 'text', timeout: 5000 });
+      if (res.data) return res.data;
+    } catch (err) {
+      // try next branch
+    }
   }
+  return '';
 }
