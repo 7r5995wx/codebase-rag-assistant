@@ -24,7 +24,11 @@ export function parseGitHubUrl(url: string): { owner: string; repo: string; repo
     throw new Error('GitHub URL must be a non-empty string.');
   }
 
-  const cleaned = url.trim().replace(/\.git$/, '');
+  let cleaned = url.trim().replace(/\.git$/, '').replace(/\/+$/, '');
+  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
+    cleaned = `https://github.com/${cleaned}`;
+  }
+
   const match = cleaned.match(/^https?:\/\/(?:www\.)?github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)(?:\/.*)?$/);
 
   if (!match) {
