@@ -43,23 +43,33 @@ export async function generateGeminiContent(promptText: string, systemInstructio
 }
 
 export async function generateGeminiEmbeddings(texts: string[]): Promise<number[][]> {
+  if (texts.length === 0) return [];
   const model = genAI.getGenerativeModel({ model: GEMINI_EMBEDDING_MODEL });
-  const BATCH_SIZE = 15;
-  const results: number[][] = [];
 
-  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-    const batch = texts.slice(i, i + BATCH_SIZE);
-    const batchEmbeddings = await Promise.all(
-      batch.map(async (text) => {
-        try {
-          const res = await model.embedContent(text.slice(0, 8000));
-          return res.embedding?.values || new Array(768).fill(0);
-        } catch (e) {
-          return new Array(768).fill(0);
-        }
-      })
-    );
-    results.push(...batchEmbeddings);
+  try {
+    const requests = texts.map((t) => ({
+      content: { role: 'user', parts: [{ text: t.slice(0, 8000) }] },
+    }));
+
+    const res = await model.batchEmbedContents({ requests });
+    if (res.embeddings && res.embeddings.length > 0) {
+      return res.embeddings.map((e) => e.values || new Array(768).fill(0));
+    }
+  } catch (err: any) {
+    console.warn('batchEmbedContents fallback:', err?.message);
+    if (err.message?.includes('quota') || err.message?.includes('429')) {
+      throw new Error('Google Gemini API Daily Quota Exceeded (1,000 requests/day). Please generate a new free API key at aistudio.google.com or retry in a few hours.');
+    }
+  }
+
+  const results: number[][] = [];
+  for (const text of texts) {
+    try {
+      const res = await model.embedContent(text.slice(0, 8000));
+      results.push(res.embedding?.values || new Array(768).fill(0));
+    } catch (e) {
+      results.push(new Array(768).fill(0));
+    }
   }
 
   return results;
